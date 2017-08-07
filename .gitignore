@@ -1,1 +1,2 @@
 *.png
+.mypy_cache/
