@@ -1,7 +1,7 @@
 import matplotlib # type: ignore
 matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
-from typing import List, Tuple, Callable, Iterator
+from typing import List, Tuple, Iterator
 import numpy as np # type: ignore
 from random import sample
 import multiprocessing as mp
@@ -10,8 +10,10 @@ from functools import reduce
 from itertools import starmap
 from operator import add
 from collections import Counter
+from typing import NamedTuple # use this instead of collections to avoid Any type
 
 HistogramData = Tuple[List[float], List[float], float]
+DataForLength = NamedTuple('DataForLength', [('historyLength', int), ('moneyData', List[int]), ('individualData', List[float])])
 
 poolSize, sampleRepeat  = mp.cpu_count() - 1, 5
 numberOfHistories = poolSize * sampleRepeat
@@ -25,29 +27,28 @@ def exchange(agentA: int, agentB: int, currentState: List[int]) -> List[int]:
         currentState[agentB] += amountOfExchange
     return currentState
 
-def plotUtils(moneyData: List[int]) -> Tuple[Callable[[], HistogramData], Callable[[], float]]:
+def wealthDistributionPlotter(result: DataForLength) -> None:
     def moneyDistribution():
-        hist, bins = np.histogram(moneyData, bins=np.linspace(min(moneyData), max(moneyData), 8))
+        hist, bins = np.histogram(result.moneyData, bins=np.linspace(min(result.moneyData), max(result.moneyData), 8))
         width = 0.85 * (bins[1] - bins[0])
         center = (bins[:-1] + bins[1:]) / 2
         return center, hist, width 
-    def entropyCalculator():
-        probabilities = [x / len(moneyData) for x in list(Counter(moneyData).values())]
-        np.testing.assert_array_almost_equal(sum(probabilities), 1, 10)
-        return -sum([p * np.log(p) for p in probabilities])
-    return moneyDistribution, entropyCalculator
- 
-'''
-def histoPlotter_entropyCalc(moneyData: List[int], historyLength: int) -> float:
-    moneyDistribution, entropyCalculator = plotUtils(moneyData) # type: Callable[[], HistogramData], Callable[[], float]
     histoBarCenters, histoVal, histoWidth = moneyDistribution() # type: HistogramData
-    entropyValue = entropyCalculator() # type: float
     plt.figure()
     plt.bar(histoBarCenters, histoVal, align='center', width=histoWidth, log=True, color='orange', linewidth=2) 
-    plt.title('time = {:d} ; entropy = {:.3f}'.format(historyLength, entropyValue))
-    plt.savefig('{:d}.png'.format(historyLength))
-    return entropyValue
-'''
+    plt.title('time = {:d} ; entropy = {:.3f}'.format(result.historyLength, entropyCalculator(result.moneyData)))
+    plt.savefig('{:d}.png'.format(result.historyLength))
+
+def entropyPlotter(allResults: List[DataForLength]) -> None:
+    entropyData = [(result.historyLength, entropyCalculator(result.moneyData)) for result in allResults]
+    plt.figure()
+    plt.scatter(*zip(*entropyData))
+    plt.savefig('Entropy.png'); plt.close()
+
+def entropyCalculator(moneyData: List[int]) -> float:
+    probabilities = [x / len(moneyData) for x in list(Counter(moneyData).values())]
+    np.testing.assert_array_almost_equal(sum(probabilities), 1, 10)
+    return -sum([p * np.log(p) for p in probabilities])
 
 def runOneHistory(historyLength: int) -> List[int]:
     currentState = [initialAmount for _ in range(numbOfAgents)]
@@ -63,21 +64,25 @@ def sanityChecks(resultsAllHistories, moneyData: List[int]) -> bool:
     check2 = len(moneyData) == numberOfHistories * numbOfAgents # type: bool
     return check1 and check2
 
-def sampleAverage(historyLength: int) -> Tuple[int, List[int], List[float]]:
+def sampleAverage(historyLength: int) -> DataForLength:
     print(historyLength)
     pool = mp.Pool(poolSize)
     resultsAllHistories = pool.map(runOneHistory, [historyLength] * numberOfHistories)
     pool.close()
-    individualData = list(map(lambda z: z / numberOfHistories, reduce(lambda a, b: zipWith(add, a, b), resultsAllHistories)))
-    moneyData = reduce(add, resultsAllHistories)
+    individualData = list(map(lambda z: z / numberOfHistories, reduce(lambda a, b: zipWith(add, a, b), resultsAllHistories))) # type: List[float]
+    moneyData = reduce(add, resultsAllHistories) # type: List[int]
     # individualData contains the average wealth held for all agents averaged over all the histories
     # moneyData simply accumulates all the lists into a single long list of wealth regardless of the precise agent
     assert sanityChecks(resultsAllHistories, moneyData)    
-    return historyLength, moneyData, individualData
+    return DataForLength(historyLength=historyLength, moneyData=moneyData, individualData=individualData)
 
 if __name__ == "__main__":
     numbOfAgents, initialAmount, amountOfExchange = 100, 100, 1
     historyLengthsToRun = [100, 1000, 2000]
-    res = map(sampleAverage, historyLengthsToRun) # type: Iterator[Tuple[int, List[int], List[float]]]
-    tt = list(res)
+    allResults = list(map(sampleAverage, historyLengthsToRun)) # type: List[DataForLength]
+    # plotting ---------
+    entropyPlotter(allResults)
+    for result in allResults:
+        wealthDistributionPlotter(result)
+    # plotting ---------
 
