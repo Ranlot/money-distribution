@@ -37,8 +37,17 @@ def wealthDistributionPlotter(result: DataForLength) -> None:
     plt.figure()
     plt.bar(histoBarCenters, histoVal, align='center', width=histoWidth, log=True, color='orange', linewidth=2) 
     plt.title('time = {:d} ; entropy = {:.3f}'.format(result.historyLength, entropyCalculator(result.moneyData)))
-    plt.savefig('{:d}.png'.format(result.historyLength))
+    plt.savefig('wealthDistribution.{:d}.png'.format(result.historyLength)); plt.close()
 
+def individualPlotter(result: DataForLength, initialAmount: int) -> None:
+    relativeDiffToInitial = [100 * (initialAmount - x) / initialAmount for x in result.individualData]
+    plt.figure(); plt.subplot(211)
+    plt.bar(range(numbOfAgents), relativeDiffToInitial)
+    plt.subplot(212); plt.bar(range(numbOfAgents), sorted(map(abs, relativeDiffToInitial), reverse=True))
+    plt.suptitle('Average wealth of agents; time = {:d}\nRelative difference to initial amount in %'.format(result.historyLength))
+    plt.savefig('individual.{:d}.png'.format(result.historyLength))
+    plt.close()
+ 
 def entropyPlotter(allResults: List[DataForLength]) -> None:
     entropyData = [(result.historyLength, entropyCalculator(result.moneyData)) for result in allResults]
     plt.figure()
@@ -84,5 +93,6 @@ if __name__ == "__main__":
     entropyPlotter(allResults)
     for result in allResults:
         wealthDistributionPlotter(result)
+        individualPlotter(result, initialAmount)
     # plotting ---------
 
