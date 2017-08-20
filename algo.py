@@ -16,7 +16,7 @@ import datetime
 HistogramData = Tuple[List[float], List[float], float]
 DataForLength = NamedTuple('DataForLength', [('historyLength', int), ('moneyData', List[int]), ('individualData', List[float])])
 
-poolSize, sampleRepeat  = mp.cpu_count() - 1, 10
+poolSize, sampleRepeat  = mp.cpu_count() - 1, 40
 numberOfHistories = poolSize * sampleRepeat
 
 def timeMe(functionToTime):
@@ -47,7 +47,7 @@ def wealthDistributionPlotter(result: DataForLength) -> None:
     plt.figure()
     plt.bar(histoBarCenters, histoVal, align='center', width=histoWidth, log=True, color='orange', linewidth=1, edgecolor='k') 
     plt.title('time = {:d} ; entropy = {:.2f}'.format(result.historyLength, entropyCalculator(result.moneyData)))
-    plt.ylim([0.1 * 10**1, 2 * 10**5]); plt.xlim([0, 1000])
+    plt.ylim([0.1 * 10**1, 1 * 10**6]); plt.xlim([0, 1500])
     plt.savefig('wealthDistribution.{:d}.png'.format(result.historyLength)); plt.close()
 
 def individualPlotter(result: DataForLength, initialAmount: int) -> None:
@@ -96,7 +96,7 @@ def sampleAverage(historyLength: int) -> DataForLength:
 
 if __name__ == "__main__":
     numbOfAgents, initialAmount, amountOfExchange = 100, 100, 1
-    historyLengthsToRun = map(int, np.logspace(np.log10(1), np.log10(20000001), 16))
+    historyLengthsToRun = map(int, np.logspace(np.log10(1), np.log10(20000001), 22))
     #historyLengthsToRun = [100, 1000, 2000]
     allResults = list(map(sampleAverage, historyLengthsToRun)) # type: List[DataForLength]
     # plotting ---------

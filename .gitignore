@@ -1,2 +1,3 @@
-*.png
+individual.*.png
+wealthDistribution.*.png
 .mypy_cache/
